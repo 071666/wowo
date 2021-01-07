@@ -1,0 +1,283 @@
+<table id="shop_data" data-options="fit:true"></table>
+
+<div id="shop_search">
+	<a href="javascript:showAddShopInfoDialog()" class="easyui-linkbutton" data-options="iconCls:'icon-add',plain:true" style="float:left">添加</a>
+	<div class="datagrid-btn-separator"></div>
+	<label class="navy_lbl">店铺类型：</label>
+	<select id="shop_search_tid" class="navy_ipt200">
+		<option value="">--请选择--</option>
+	</select>
+	<label class="navy_lbl">店铺名称：</label><input type="text" id="shop_search_sname" class="navy_ipt200">
+	<label class="navy_lbl">店铺状态：</label>
+	<select id="shop_search_status" class="navy_slt200">
+		<option value="">--请选择--</option>
+		<option value="0">已停业</option>
+		<option value="1">正营业</option>
+	</select>
+	<a href="javascript:searchShopInfo()" class="easyui-linkbutton" data-options="iconCls:'icon-search'">查询</a>
+</div>
+<div id="shop_dialog" class="easyui-dialog" data-options="resizable:true,modal:true,closed:true">
+	<form id="shop_form">
+		<ul>
+			<li><label>店铺类型：</label><select id="shop_dialog_tid" class="navy_slt400"><option value="">--请选择--</option></select></li>
+			<li><label for="shop_dialog_sname">店铺名称：</label><input type="text" id="shop_dialog_sname" class="navy_ipt400" placeholder="请输入店铺名称..."/></li>
+			<li><label>店铺地址：</label>
+				<select id="shop_dialog_province" class="navy_slt200"><option value=""></option></select>
+				<select id="shop_dialog_city" class="navy_slt200"><option value=""></option></select>
+				<select id="shop_dialog_area" class="navy_slt200"><option value=""></option></select>
+			</li>
+			<li><label for="shop_dialog_addr">详细地址：</label><input type="text" id="shop_dialog_addr" class="navy_ipt400" placeholder="请输入店铺详细地址..."/></li>
+			<li><label for="shop_dialog_tel">联系电话：</label><input type="text" id="shop_dialog_tel" class="navy_ipt400" placeholder="请输入店铺联系方式..."/></li>
+			<li><label>营业时间：</label>
+				<input type="time" id="shop_dialog_startHours" />-
+				<input type="time" id="shop_dialog_endHours" />
+			</li>
+			<li><label>营业执照：</label><input type="file" id="shop_dialog_license" name="license" onchange="setImagePreviewss(this, 'show_shop_dialog_license', 400, 500)"/></li>
+			<li><label>店铺简介：</label><textarea id="shop_dialog_intro" rows="4" cols="120"></textarea></li>
+			<li><label>店铺图片：</label><input type="file" multiple="multiple" id="shop_dialog_pics" name="pics" onchange="setImagePreviews(this, 'show_shop_dialog_pics')"/></li>
+			<li id="show_shop_dialog_pics"></li>
+		</ul>
+	</form>
+	<div id="show_shop_dialog_license"></div>
+</div>
+<style>
+#shop_form li{
+	list-style-type: none;
+	margin-top: 20px;
+}
+#shop_form li > label{
+	width: 100px;
+	display: inline-block;
+	text-align: right;
+}
+#show_shop_dialog_license{
+	border: 2px solid #ccc;
+	width: 400px;
+	height: 500px;
+	position: absolute;
+	top: 50px;
+	right: 50px;
+}
+</style>
+<script>
+var shop_types;
+var shop_obj;
+
+bindAddr("../../xml/city.xml");
+
+$(function(){
+	$.post("../../type", {op:"finds"}, data => {
+		shop_types = data;
+		var str = '<option value="">--请选择--</option>';
+		$.each(data, function(index, item){
+			str += '<option value="'+ item.tid +'">'+ item.tname +'</option>';
+		})
+		$("#shop_search_tid").html("").append($(str));
+		$("#shop_dialog_tid").html("").append($(str));
+		
+		showShopDataGrid();
+	}, "json");
+})
+
+function showShopDataGrid(){
+	shop_obj = $('#shop_data').datagrid({   
+	    url:'../../shop',
+	    queryParams:{op:"findByPage"},
+	    fitColumns:true,
+	    striped:true,
+	    loadMsg:"数据加载中。。。",
+	    pagination:true,
+	    rownumbers:true,
+	    pageSize:15,
+	    pageList:[10,15,20,30,40,50,100],
+	    sortName:"sid",
+	    remoteSort:false,
+	    columns:[[   
+	        {field:'sid',title:'店铺编号',width:100,align:'center', sortable:"true"},   
+	        {field:'sname',title:'店铺名称',width:150,align:'center'},   
+	        {field:'tid',title:'店铺类型',width:100,align:'center', formatter: function(val, row, index){
+	        	for(var i = 0, len = shop_types.length; i < len; i++){
+	        		if(val == shop_types[i].tid){
+	        			return shop_types[i].tname;
+	        		}
+	        	}
+	        }},
+	        {field:'city',title:'城市',width:80,align:'center'},
+	        {field:'area',title:'地区',width:80,align:'center'},
+	        {field:'tel',title:'联系方式',width:100,align:'center'},
+	        {field:'regDate',title:'注册日期',width:100,align:'center'},
+	        {field:'status',title:'类型状态',width:60,align:'center', formatter: function(value,row,index){
+				if (value == 0){
+					return '<font color="red">停业</font>';
+				} else {
+					return '<font color="green">营业</font>';
+				}
+			}},
+			{field:'_operator',title:'操作',width:100, align:'center', formatter: function(value,row,index){
+				return '<a href="javascript:showUpdateShopInfoDialog('+ row.sid +')" class="navy-icon-edit">修改</a>&nbsp;<a href="javascript:showShopInfoDetail('+ row.sid +')" class="navy-icon-detail">详细</a>';
+			}}
+	    ]],
+	    toolbar: "#shop_search"
+	});
+}
+
+function showAddShopInfoDialog() {
+		$("#shop_form")[0].reset();//表单重置[0]相当于是将jQuery对象转成js对象$(obj) -> js对象转jQuery对象
+		$("#show_shop_dialog_pics").html("");
+		$("#show_shop_dialog_license").html("");
+		$("#shop_form input,#shop_form textarea").removeAttr("readonly");
+		$("#shop_form select").attr("disabled");
+		
+		$('#shop_dialog').dialog({
+			title:'添加店铺信息',
+			fit:true,
+			buttons:[
+				{
+					text:"添加",
+					iconCls:"icon-ok",
+					handler:function(){
+						shop_addInfo();// 调用添加的方法
+					}
+				},{
+					text:"取消",
+					iconCls:"icon-cancel",
+					handler:function(){
+						$('#shop_dialog').dialog('close')
+					}
+				}
+			]
+		});
+		$('#shop_dialog').dialog('open');
+}
+
+
+function showUpdateShopInfoDialog(sid) {
+	$("#shop_form")[0].reset();//表单重置[0]相当于是将jQuery对转成js对象$(obj) -> js对象转jQuery对象
+	$("#show_shop_dialog_pics").html("");
+	$("#show_shop_dialog_license").html("");
+	
+	//先根据编号查询这个店铺信息
+	$.post('../../shop',{op:"findBySid", sid: sid}, data => {
+		
+	},'json');
+	$('#shop_dialog').dialog({
+		title:'添加店铺信息',
+		fit:true,
+		buttons:[
+			{
+				text:"修改",
+				iconCls:"icon-ok",
+				handler:function(){
+					
+				}
+			},{
+				text:"取消",
+				iconCls:"icon-cancel",
+				handler:function(){
+					$('#shop_dialog').dialog('close')
+				}
+			}
+		]
+	});
+	$('#shop_dialog').dialog('open');
+}
+
+
+function shop_addInfo(){
+	var tid = $.trim($("#shop_dialog_tid").val());//取类型编号
+	var sname = $.trim($("#shop_dialog_sname").val());//店铺名称
+	var province = $.trim($("#shop_dialog_province").val());
+	var city = $.trim($("#shop_dialog_city").val());
+	var area = $.trim($("#shop_dialog_area").val());
+	var addr = $.trim($("#shop_dialog_addr").val());
+	var tel = $.trim($("#shop_dialog_tel").val());
+	var startHours = $.trim($("#shop_dialog_startHours").val());
+	var endHours = $.trim($("#shop_dialog_endHours").val());
+	var intro = $.trim($("#shop_dialog_intro").val());
+	
+	var obj = {tid:tid, sname:sname, province:province, city:city, area:area, addr:addr, tel:tel, startHours:startHours, endHours:endHours, intro:intro}
+	
+	console.info(obj);
+	$.ajaxFileUpload({
+		url:"../../shop?op=add",//注意此时的op必须拼接在地址栏，不能放数据区，否则后台无法直接通过request.getParameter("op")获取
+		secureuri: false,
+		fileElementId: ["shop_dialog_license", "shop_dialog_pics"],// 所有file文本框的id属性值
+		dataType: "json",// 数据的格式
+		data: obj,//要发送的数据
+		success: function(data, status){
+			if(data.code == 200){
+				shop_obj.datagrid("reload");//重新加载数据
+				$('#shop_dialog').dialog('close');//关闭弹出框
+				$.messager.show({title:'成功提示',msg:'店铺信息添加成功...',timeout:2000,showType:'slide'});
+			}else{
+				$.messager.alert('失败提示','店铺信息添加失败...','error');
+			}
+		},
+		error: function(data, status, e){
+			$.messager.alert('提示','店铺信息添加失败...\n'+ e ,'error');
+		}
+	})
+}
+
+function searchShopInfo() {
+	var tid = $.trim($("#shop_search_tid").val());
+	var sname = $.trim($("#shop_search_sname").val());
+	var status = $.trim($("#shop_search_status").val());
+	
+	shop_obj.datagrid({
+		url: "../../shop",
+		queryParams: {op: "findCondition", tid:tid, sname:sname, status:status}
+	})
+}
+
+
+function showShopInfoDetail(sid){
+	$.post("../../shop", {op:"findBySid", sid:sid}, data => {
+		if(data.code == 200){//说明请求数据成功
+			$("#shop_form input,#shop_form textarea").attr("readonly","true");
+			$("#shop_form select").attr("disabled","true");
+			$("#shop_dialog_tid").val(data.data.tid);//取类型编号
+			$("#shop_dialog_sname").val(data.data.sname);//店铺名称
+			$("#shop_dialog_province").val(data.data.province);
+			
+			$("#shop_dialog_province")[0].onchange();
+			
+			//console.log($("#shop_dialog_province"));
+			$("#shop_dialog_city").val(data.data.city);
+			
+			$("#shop_dialog_city")[0].onchange();
+			$("#shop_dialog_area").val(data.data.area);
+			
+			$("#shop_dialog_addr").val(data.data.addr);
+			$("#shop_dialog_tel").val(data.data.tel);
+			$("#shop_dialog_startHours").val(data.data.startHours);
+			$("#shop_dialog_endHours").val(data.data.endHours);
+			$("#shop_dialog_intro").val(data.data.intro);
+			
+			var imgStr = "<img src='../../"+ data.data.license + "' width='400px' height='500px' />";
+			$("#show_shop_dialog_license").html("").append($(imgStr));
+			
+			imgStr = "";
+			var pics = data.data.pics.split(";");
+			for(var i= 0, len = pics.length; i < len; i++){
+				imgStr += "<img src='../../"+ pics[i] + "' width='100px' height='100px' />&nbsp;";
+			}
+			$("#show_shop_dialog_pics").html("").append($(imgStr));
+			$('#shop_dialog').dialog({
+				title:'店铺详细信息',
+				fit:true,
+				buttons:[
+					{
+						text:"关闭",
+						iconCls:"icon-cancel",
+						handler:function(){
+							$('#shop_dialog').dialog('close')
+						}
+					}
+				]
+			});
+			$('#shop_dialog').dialog('open');
+		}
+	},"json");
+}
+</script>
